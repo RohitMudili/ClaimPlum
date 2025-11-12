@@ -11,7 +11,7 @@ import logging
 import time
 from typing import BinaryIO, Tuple
 from pathlib import Path
-import PyPDF2
+import pypdf
 import io
 
 from models.claim_data import ExtractedData, ProcessingResult
@@ -142,8 +142,8 @@ class DocumentProcessor:
         # Type-specific validation
         try:
             if file_type == 'pdf':
-                # Try to open with PyPDF2
-                pdf = PyPDF2.PdfReader(io.BytesIO(file_data))
+                # Try to open with pypdf
+                pdf = pypdf.PdfReader(io.BytesIO(file_data))
                 if len(pdf.pages) == 0:
                     return False
 
@@ -189,13 +189,13 @@ class DocumentProcessor:
         except Exception as e:
             logger.warning(f"Gemini Vision failed: {str(e)}. Trying fallback...")
 
-        # Method 2: Fallback to PyPDF2 text extraction + Gemini
+        # Method 2: Fallback to pypdf text extraction + Gemini
         try:
             logger.info("Attempting extraction with text extraction + Gemini...")
 
-            # For PDF, extract text with PyPDF2
+            # For PDF, extract text with pypdf
             if file_type == 'pdf':
-                pdf = PyPDF2.PdfReader(io.BytesIO(file_data))
+                pdf = pypdf.PdfReader(io.BytesIO(file_data))
                 text_parts = []
                 for page in pdf.pages:
                     text_parts.append(page.extract_text())
@@ -252,9 +252,9 @@ class DocumentProcessor:
             return img_byte_arr.getvalue()
 
         except ImportError:
-            logger.warning("pdf2image not available, using PyPDF2 text extraction")
+            logger.warning("pdf2image not available, using pypdf text extraction")
             # Fallback: extract text from PDF
-            pdf = PyPDF2.PdfReader(io.BytesIO(pdf_data))
+            pdf = pypdf.PdfReader(io.BytesIO(pdf_data))
             text = pdf.pages[0].extract_text()
 
             # For this fallback, we'll need to process as text

@@ -12,7 +12,7 @@ Implements 6-step adjudication workflow:
 import logging
 from datetime import datetime, timedelta
 from typing import Tuple
-from fuzzywuzzy import fuzz
+from rapidfuzz import fuzz
 from models.claim_data import ExtractedData
 from models.decision import (
     ClaimDecision, DecisionType, RejectionReason, Deductions,
