@@ -13,9 +13,8 @@ frontend/dist/
 frontend/.env
 frontend/.env.local
 
-# Test documents and assignment
+# Test documents
 test-docs/
-assignment/
 
 # IDE
 .vscode/
