@@ -1,16 +1,18 @@
 """
 Adjudication Engine - Main decision-making logic for claim approval/rejection
 
-Implements 5-step adjudication workflow:
-1. Eligibility Check
-2. Document Validation
-3. Coverage Verification
-4. Limits Check
-5. Medical Necessity Review
+Implements 6-step adjudication workflow:
+1. Identity Verification (Name Matching)
+2. Eligibility Check
+3. Document Validation
+4. Coverage Verification
+5. Limits Check
+6. Medical Necessity Review
 """
 import logging
 from datetime import datetime, timedelta
 from typing import Tuple
+from fuzzywuzzy import fuzz
 from models.claim_data import ExtractedData
 from models.decision import (
     ClaimDecision, DecisionType, RejectionReason, Deductions,
@@ -63,6 +65,24 @@ class AdjudicationEngine:
         if fraud_risk >= 0.5:
             decision.decision = DecisionType.MANUAL_REVIEW
             decision.notes = f"Flagged for manual review due to fraud indicators (risk score: {fraud_risk:.2f})"
+            return decision
+
+        # Step 0: Identity Verification (Name Matching)
+        name_match_result = self._verify_identity(extracted_data, member_info)
+        if name_match_result['status'] == 'REJECTED':
+            decision.decision = DecisionType.REJECTED
+            decision.rejection_reasons.append(RejectionReason(
+                category="identity",
+                code="NAME_MISMATCH",
+                message="Name mismatch detected",
+                details=name_match_result['details']
+            ))
+            decision.notes = name_match_result['details']
+            return decision
+        elif name_match_result['status'] == 'MANUAL_REVIEW':
+            decision.decision = DecisionType.MANUAL_REVIEW
+            decision.notes = name_match_result['details']
+            decision.fraud_flags.append(name_match_result['details'])
             return decision
 
         # Step 1: Eligibility Check
@@ -145,6 +165,64 @@ class AdjudicationEngine:
         )
 
         return decision
+
+    def _verify_identity(
+        self,
+        extracted_data: ExtractedData,
+        member_info: MemberInfo
+    ) -> dict:
+        """
+        Step 0: Verify patient identity using fuzzy name matching
+
+        Returns:
+            dict with status (APPROVED/MANUAL_REVIEW/REJECTED) and details
+        """
+        # Extract patient name from documents
+        patient_name = extracted_data.patient_name
+        member_name = member_info.member_name
+
+        # If no patient name extracted, skip validation
+        if not patient_name or not patient_name.strip():
+            logger.warning("No patient name found in documents, skipping identity verification")
+            return {
+                'status': 'APPROVED',
+                'details': 'No patient name available for verification',
+                'similarity': None
+            }
+
+        # Normalize names (lowercase, strip whitespace)
+        patient_name_normalized = patient_name.strip().lower()
+        member_name_normalized = member_name.strip().lower()
+
+        # Calculate similarity score using fuzzy matching
+        similarity = fuzz.token_sort_ratio(patient_name_normalized, member_name_normalized)
+
+        logger.info(
+            f"Name matching: '{patient_name}' vs '{member_name}' - Similarity: {similarity}%"
+        )
+
+        # Decision thresholds
+        if similarity >= 90:
+            # High confidence match - approve
+            return {
+                'status': 'APPROVED',
+                'details': f"Name verified: {similarity}% match",
+                'similarity': similarity
+            }
+        elif similarity >= 70:
+            # Medium confidence - manual review required
+            return {
+                'status': 'MANUAL_REVIEW',
+                'details': f"Name mismatch detected: Patient name '{patient_name}' vs Member name '{member_name}' (Similarity: {similarity}%). Claim requires manual verification.",
+                'similarity': similarity
+            }
+        else:
+            # Low confidence - reject
+            return {
+                'status': 'REJECTED',
+                'details': f"Significant name mismatch: Patient name '{patient_name}' does not match member name '{member_name}' (Similarity: {similarity}%). This appears to be a different person.",
+                'similarity': similarity
+            }
 
     def _check_eligibility(
         self,

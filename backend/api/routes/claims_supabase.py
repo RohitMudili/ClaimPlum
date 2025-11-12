@@ -6,6 +6,7 @@ from typing import Optional
 from datetime import datetime
 import shutil
 from pathlib import Path
+import asyncio
 
 from db.supabase_client import get_supabase, get_supabase_admin
 from services.document_processor import DocumentProcessor
