@@ -361,9 +361,9 @@ pytest
 
 ## 📈 Performance Metrics
 
-- **Document Processing**: 2-3 seconds (parallel mode)
+- **Document Processing**: 8-12 seconds (parallel mode)
 - **Adjudication Decision**: <500ms
-- **Total Claim Processing**: 3-4 seconds end-to-end
+- **Total Claim Processing**: 15 seconds end-to-end
 - **Confidence Threshold**: >0.7 for auto-approval
 - **Test Pass Rate**: 10/10 test cases (100%)
 
