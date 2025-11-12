@@ -2,11 +2,23 @@
 export default {
   content: [
     "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
+    "./src//*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
       colors: {
+        primary: {
+            50: '#f0f4f8',
+            100: '#d9e6f2',
+            200: '#b3cde0',
+            300: '#7fa9cb',
+            400: '#5489b8',
+            500: '#4a7ba7',
+            600: '#3d6690',
+            700: '#335578',
+            800: '#2a4560',
+            900: '#1f3449',
+        },
         plum: {
           50: '#fdf4ff',
           100: '#fae8ff',

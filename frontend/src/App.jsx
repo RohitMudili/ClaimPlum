@@ -1,11 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ClaimUpload from './components/ClaimUpload';
 import DecisionDisplay from './components/DecisionDisplay';
 import SalesConversion from './components/SalesConversion';
+import healthIcon from './assets/health-insurance-icon.webp';
 
 function App() {
   const [currentView, setCurrentView] = useState('upload'); // 'upload', 'decision', 'sales'
   const [claimData, setClaimData] = useState(null);
+
+  // Scroll to top whenever view changes
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [currentView]);
 
   const handleClaimSuccess = (data, type) => {
     setClaimData(data);
@@ -24,22 +30,21 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f8f9fb]">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="text-4xl">🏥</div>
+              <img src={healthIcon} alt="Health Insurance Logo" className="h-11 w-11 object-contain" />
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Plum OPD Claims</h1>
-                <p className="text-sm text-gray-600">AI-Powered Claim Adjudication</p>
               </div>
             </div>
             {currentView !== 'upload' && (
               <button
                 onClick={handleReset}
-                className="px-4 py-2 bg-plum-600 text-white rounded-lg hover:bg-plum-700 transition-colors"
+                className="px-6 py-2 bg-primary-600 text-white rounded-full hover:bg-primary-800 transition-colors"
               >
                 New Claim
               </button>
@@ -58,11 +63,12 @@ function App() {
           <DecisionDisplay
             decision={claimData}
             claimId={claimData.claim_id}
+            onReset={handleReset}
           />
         )}
 
         {currentView === 'sales' && claimData && (
-          <SalesConversion salesData={claimData} />
+          <SalesConversion salesData={claimData} onReset={handleReset} />
         )}
       </main>
 
@@ -71,7 +77,7 @@ function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
             <div className="text-sm text-gray-600">
-              © 2025 Plum. Powered by AI. Built with ❤️
+              © 2025 Plum. Powered by AI. Built with ❤
             </div>
             <div className="flex space-x-6 text-sm">
               <a href="#" className="text-gray-600 hover:text-plum-600 transition-colors">

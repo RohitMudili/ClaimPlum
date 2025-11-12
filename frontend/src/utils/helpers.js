@@ -1,3 +1,11 @@
+// Import decision icons
+import confirmIcon from '../assets/confirm-icon.webp';
+import redXIcon from '../assets/red-x-icon.webp';
+import delayIcon from '../assets/delay-icon.webp';
+import userPendingIcon from '../assets/male-user-pending-icon.png';
+import userRemoveIcon from '../assets/male-user-remove-icon.png';
+import fileIcon from '../assets/file-icon.webp';
+
 /**
  * Format currency in INR
  * @param {number} amount - Amount to format
@@ -62,29 +70,29 @@ export const getStatusColor = (status) => {
  */
 export const getDecisionColor = (decision) => {
   const decisionColors = {
-    APPROVED: 'bg-green-100 text-green-800 border-green-300',
-    REJECTED: 'bg-red-100 text-red-800 border-red-300',
-    PARTIAL: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-    MANUAL_REVIEW: 'bg-orange-100 text-orange-800 border-orange-300',
-    NOT_A_MEMBER: 'bg-purple-100 text-purple-800 border-purple-300',
+    APPROVED: 'bg-green-100 text-green-800 border-green-500',
+    REJECTED: 'bg-red-100 text-red-800 border-red-500',
+    PARTIAL: 'bg-yellow-100 text-yellow-800 border-yellow-500',
+    MANUAL_REVIEW: 'bg-orange-100 text-orange-800 border-orange-500',
+    NOT_A_MEMBER: 'bg-purple-100 text-purple-800 border-purple-500',
   };
-  return decisionColors[decision] || 'bg-gray-100 text-gray-800 border-gray-300';
+  return decisionColors[decision] || 'bg-gray-100 text-gray-800 border-gray-500';
 };
 
 /**
  * Get decision icon
  * @param {string} decision - Decision type
- * @returns {string} Unicode emoji/icon
+ * @returns {string} Imported icon path
  */
 export const getDecisionIcon = (decision) => {
   const icons = {
-    APPROVED: '✅',
-    REJECTED: '❌',
-    PARTIAL: '⚠️',
-    MANUAL_REVIEW: '🔍',
-    NOT_A_MEMBER: '💼',
+    APPROVED: confirmIcon,
+    REJECTED: redXIcon,
+    PARTIAL: delayIcon,
+    MANUAL_REVIEW: userPendingIcon,
+    NOT_A_MEMBER: userRemoveIcon,
   };
-  return icons[decision] || '📄';
+  return icons[decision] || fileIcon;
 };
 
 /**

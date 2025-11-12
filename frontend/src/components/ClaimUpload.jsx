@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { uploadClaim, processClaim } from '../services/api';
 import { validateFileType, validateFileSize, formatFileSize } from '../utils/helpers';
+import fileIcon from '../assets/file-icon.webp';
+import fileUploadIcon from '../assets/file-upload-icon.webp';
 
 const ClaimUpload = ({ onSuccess }) => {
   const [formData, setFormData] = useState({
@@ -15,7 +17,24 @@ const ClaimUpload = ({ onSuccess }) => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [displayProgress, setDisplayProgress] = useState(0);
   const [dragActive, setDragActive] = useState({ prescription: false, bill: false });
+
+  useEffect(() => {
+    if (loading && uploadProgress == 0) {
+      setDisplayProgress(0);
+    }else if (loading && uploadProgress > 0){
+      const timer = setTimeout(() => { setDisplayProgress(uploadProgress); }, 500);
+      return () => clearTimeout(timer);
+    }else if (!loading){
+      setDisplayProgress(0);
+    }
+
+  }, [loading, uploadProgress]);
+
+  useEffect(() => {
+    window.scrollTo(0,0);
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -75,6 +94,16 @@ const ClaimUpload = ({ onSuccess }) => {
     // Member ID is required
     if (!formData.member_id || !formData.member_id.trim()) {
       newErrors.member_id = 'Member ID is required';
+    }
+
+    //Prescription file required
+    if (!formData.prescription) {
+      newErrors.prescription = 'Prescription file is required';
+    }
+
+    // Bill file required
+    if (!formData.bill) {
+      newErrors.bill = 'Bill file is required';
     }
 
     setErrors(newErrors);
@@ -147,12 +176,12 @@ const ClaimUpload = ({ onSuccess }) => {
   const FileUploadZone = ({ type, label, file, error }) => (
     <div className="space-y-2">
       <label className="block text-sm font-medium text-gray-700">
-        {label}
+        {typeof label === 'string' ? label : label}
       </label>
       <div
         className={`relative border-2 border-dashed rounded-lg p-6 text-center transition-all ${
           dragActive[type]
-            ? 'border-plum-500 bg-plum-50'
+            ? 'border-primary-500 bg-primary-50'
             : error
             ? 'border-red-300 bg-red-50'
             : 'border-gray-300 hover:border-gray-400'
@@ -173,12 +202,12 @@ const ClaimUpload = ({ onSuccess }) => {
         <label htmlFor={type} className="cursor-pointer">
           {file ? (
             <div className="space-y-2">
-              <div className="text-4xl">📄</div>
+              <img src={fileIcon} alt="File Icon" className="h-10 w-10 mx-auto" />
               <div className="text-sm font-medium text-gray-700">{file.name}</div>
               <div className="text-xs text-gray-500">{formatFileSize(file.size)}</div>
               <button
                 type="button"
-                className="text-sm text-plum-600 hover:text-plum-700"
+                className="text-sm text-primary-600 hover:text-primary-700"
                 onClick={(e) => {
                   e.preventDefault();
                   setFormData(prev => ({ ...prev, [type]: null }));
@@ -189,9 +218,9 @@ const ClaimUpload = ({ onSuccess }) => {
             </div>
           ) : (
             <div className="space-y-2">
-              <div className="text-4xl">📤</div>
+              <img src={fileUploadIcon} alt="Upload Icon" className="h-10 w-10 mx-auto" />
               <div className="text-sm text-gray-600">
-                <span className="font-medium text-plum-600">Click to upload</span> or drag and drop
+                <span className="font-medium text-primary-600">Click to upload</span> or drag and drop
               </div>
               <div className="text-xs text-gray-500">PDF, PNG, JPG, JPEG (max 10MB)</div>
             </div>
@@ -206,8 +235,8 @@ const ClaimUpload = ({ onSuccess }) => {
     <div className="max-w-4xl mx-auto p-6">
       <div className="bg-white rounded-xl shadow-lg p-8">
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Submit New Claim</h2>
-          <p className="text-gray-600">Upload your prescription and bill to process your OPD claim</p>
+          <h2 className="text-4xl font-bold text-gray-900 tracking-tight mb-2">Submit New Claim</h2>
+          <p className="text-gray-600 font-medium">Please upload your prescription and bill to process your OPD claim</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -221,7 +250,7 @@ const ClaimUpload = ({ onSuccess }) => {
               name="member_id"
               value={formData.member_id}
               onChange={handleInputChange}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-plum-500 focus:border-transparent ${
+              className={`w-full px-4 py-2 border rounded-lg focus:border-transparent ${
                 errors.member_id ? 'border-red-300' : 'border-gray-300'
               }`}
               placeholder="e.g., EMP001"
@@ -234,13 +263,13 @@ const ClaimUpload = ({ onSuccess }) => {
           <div className="grid md:grid-cols-2 gap-6">
             <FileUploadZone
               type="prescription"
-              label="Prescription"
+              label={<>Prescription <span className="text-red-500">*</span></>}
               file={formData.prescription}
               error={errors.prescription}
-            />
+            /> 
             <FileUploadZone
               type="bill"
-              label="Bill"
+              label={<>Bill <span className="text-red-500">*</span></>}
               file={formData.bill}
               error={errors.bill}
             />
@@ -259,7 +288,7 @@ const ClaimUpload = ({ onSuccess }) => {
                   name="member_name"
                   value={formData.member_name}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-plum-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                   placeholder="John Doe"
                   disabled={loading}
                 />
@@ -271,7 +300,7 @@ const ClaimUpload = ({ onSuccess }) => {
                   name="contact_email"
                   value={formData.contact_email}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-plum-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                   placeholder="john@company.com"
                   disabled={loading}
                 />
@@ -283,7 +312,7 @@ const ClaimUpload = ({ onSuccess }) => {
                   name="contact_phone"
                   value={formData.contact_phone}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-plum-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                   placeholder="+91-XXXXX-XXXXX"
                   disabled={loading}
                 />
@@ -291,21 +320,7 @@ const ClaimUpload = ({ onSuccess }) => {
             </div>
           </details>
 
-          {/* Progress Bar */}
-          {loading && uploadProgress > 0 && (
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>Processing claim...</span>
-                <span>{uploadProgress}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
-                <div
-                  className="bg-plum-600 h-2.5 rounded-full transition-all duration-300"
-                  style={{ width: `${uploadProgress}%` }}
-                ></div>
-              </div>
-            </div>
-          )}
+
 
           {/* Error Message */}
           {errors.submit && (
@@ -314,14 +329,34 @@ const ClaimUpload = ({ onSuccess }) => {
             </div>
           )}
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-plum-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-plum-700 focus:outline-none focus:ring-2 focus:ring-plum-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {loading ? 'Processing...' : 'Submit Claim'}
-          </button>
+          {/* Progress Indicator / Submit Button */}
+          {loading ? (
+            <div className="space-y-3 py-2">
+              <div className="flex justify-between items-center text-sm">
+                <span className="font-medium text-gray-700">
+                  {uploadProgress < 35 ? 'Uploading documents...' :
+                   uploadProgress < 65 ? 'Validating claim details...' :
+                   uploadProgress < 95 ? 'Processing claim...' :
+                   'Finalizing...'}
+                </span>
+                <span className="text-gray-600 tabular-nums font-medium">{displayProgress}%</span>
+              </div>
+              <div className="relative w-full bg-gray-100 rounded-full h-3 overflow-hidden shadow-inner">
+                <div
+                  className="absolute top-0 left-0 h-full bg-gradient-to-r from-primary-500 to-primary-600 rounded-full transition-all duration-500 ease-out shadow-sm"
+                  style={{ width: `${displayProgress}%` }}
+                ></div>
+              </div>
+              <p className="text-xs text-gray-500 text-center">Please don't close this window</p>
+            </div>
+          ) : (
+            <button
+              type="submit"
+              className="w-full bg-gradient-to-r from-primary-600 to-primary-700 text-white py-3.5 px-6 rounded-full font-semibold hover:from-primary-700 hover:to-primary-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all duration-200 shadow-sm hover:shadow-md active:scale-[0.99]"
+            >
+              Submit Claim
+            </button>
+          )}
         </form>
       </div>
     </div>

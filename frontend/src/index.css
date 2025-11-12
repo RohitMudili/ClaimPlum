@@ -1,16 +1,29 @@
 @import "tailwindcss";
 
 @theme {
-  --color-plum-50: #fdf4ff;
-  --color-plum-100: #fae8ff;
-  --color-plum-200: #f5d0fe;
-  --color-plum-300: #f0abfc;
-  --color-plum-400: #e879f9;
-  --color-plum-500: #d946ef;
-  --color-plum-600: #c026d3;
-  --color-plum-700: #a21caf;
-  --color-plum-800: #86198f;
-  --color-plum-900: #701a75;
+    /* Brighter Dusty Blue - Primary Colors */
+    --color-primary-50: #f0f4f8;
+    --color-primary-100: #d9e6f2;
+    --color-primary-200: #b3cde0;
+    --color-primary-300: #7fa9cb;
+    --color-primary-400: #5489b8;
+    --color-primary-500: #4a7ba7;
+    --color-primary-600: #3d6690;
+    --color-primary-700: #335578;
+    --color-primary-800: #2a4560;
+    --color-primary-900: #1f3449;
+
+    /* Plum Purple - Accent Colors */
+    --color-plum-50: #fdf4ff;
+    --color-plum-100: #fae8ff;
+    --color-plum-200: #f5d0fe;
+    --color-plum-300: #f0abfc;
+    --color-plum-400: #e879f9;
+    --color-plum-500: #d946ef;
+    --color-plum-600: #c026d3;
+    --color-plum-700: #a21caf;
+    --color-plum-800: #86198f;
+    --color-plum-900: #701a75;
 }
 
 :root {
@@ -23,7 +36,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background-color: rgb(249 250 251);
+  background-color: #f8f9fb;
 }
 
 /* Custom scrollbar */
