@@ -265,13 +265,26 @@ class AdjudicationEngine:
         # Check waiting period
         if extracted_data.dates and extracted_data.dates.consultation_date:
             try:
-                policy_start = datetime.strptime(member_info.policy_start_date, '%Y-%m-%d')
+                # Handle both date formats: 'YYYY-MM-DD' and 'YYYY-MM-DD HH:MM:SS+TZ'
+                policy_start_str = member_info.policy_start_date
+                if ' ' in policy_start_str:
+                    policy_start_str = policy_start_str.split(' ')[0]
+
+                policy_start = datetime.strptime(policy_start_str, '%Y-%m-%d')
                 consultation_date = datetime.strptime(extracted_data.dates.consultation_date, '%Y-%m-%d')
                 days_diff = (consultation_date - policy_start).days
 
+                print(f"   📅 Waiting period check:")
+                print(f"      Policy start: {policy_start_str}")
+                print(f"      Consultation: {extracted_data.dates.consultation_date}")
+                print(f"      Days diff: {days_diff} days")
+
                 # Check initial waiting period
                 initial_waiting = self.policy_service.get_waiting_period('initial')
+                print(f"      Initial waiting required: {initial_waiting} days")
+
                 if days_diff < initial_waiting:
+                    print(f"      ❌ REJECTED: {days_diff} < {initial_waiting}")
                     rejection_reasons.append(RejectionReason(
                         category="eligibility",
                         code="WAITING_PERIOD",
@@ -279,6 +292,8 @@ class AdjudicationEngine:
                         details=f"Policy active for only {days_diff} days"
                     ))
                     return False, rejection_reasons
+                else:
+                    print(f"      ✅ PASSED: {days_diff} >= {initial_waiting}")
 
                 # Check specific condition waiting periods
                 if extracted_data.diagnosis:

@@ -126,10 +126,16 @@ async def _process_non_member_preview(
             }
 
         # Create hypothetical member for calculation
+        # Use the name from the documents to avoid name mismatch
+        doc_name = member_name
+        if merged_data.patient_info and merged_data.patient_info.name:
+            doc_name = merged_data.patient_info.name
+
+        # Set policy start date to 2023-01-01 (well before any treatment) to bypass waiting periods
         hypothetical_member = AdjMemberInfo(
             member_id="PREVIEW",
-            member_name=member_name or "Potential Customer",
-            policy_start_date=datetime.utcnow().strftime('%Y-%m-%d'),
+            member_name=doc_name or "Potential Customer",
+            policy_start_date="2023-01-01",  # Set to early date to avoid waiting period issues
             policy_status="active",
             ytd_claims=0.0,
             previous_claims=[]
@@ -139,8 +145,15 @@ async def _process_non_member_preview(
         engine = AdjudicationEngine()
         preview_decision = engine.adjudicate_claim(merged_data, hypothetical_member)
 
+        print("\n🔍 SALES CONVERSION DEBUG:")
+        print(f"   Claimed amount: ₹{merged_data.costs.total if merged_data.costs else 0}")
+        print(f"   Preview decision: {preview_decision.decision.value}")
+        print(f"   Approved amount: ₹{preview_decision.approved_amount}")
+        print(f"   Rejection reasons: {[r.message for r in preview_decision.rejection_reasons]}")
+        print(f"   Deductions: copay=₹{preview_decision.deductions.copay}, network=₹{preview_decision.deductions.network_discount}")
+
         claimed_amount = merged_data.costs.total if merged_data.costs else 0.0
-        potential_savings = claimed_amount - preview_decision.approved_amount if preview_decision.approved_amount > 0 else 0
+        potential_savings = preview_decision.approved_amount  # Amount Plum would cover = your savings
         coverage_percentage = (preview_decision.approved_amount / claimed_amount * 100) if claimed_amount > 0 else 0
 
         # Build sales conversion response
@@ -473,13 +486,29 @@ async def process_claim(
 
         # Get member info
         member = claim["members"]
+
+        # Fetch previous claims for fraud detection
+        previous_claims_result = supabase.table("claims").select(
+            "claim_id, claim_amount, decision, created_at, consultation_date"
+        ).eq("member_id", member["id"]).neq("claim_id", claim_id).order("created_at", desc=True).limit(50).execute()
+
+        # Format previous claims for fraud detection
+        previous_claims = []
+        for prev_claim in previous_claims_result.data:
+            previous_claims.append({
+                "claim_id": prev_claim["claim_id"],
+                "amount": prev_claim.get("claim_amount", 0),
+                "date": prev_claim.get("consultation_date"),  # Consultation date from the documents
+                "decision": prev_claim.get("decision")
+            })
+
         adj_member_info = AdjMemberInfo(
             member_id=member["id"],
             member_name=member["name"],
             policy_start_date=member["policy_start_date"][:10],  # YYYY-MM-DD
             policy_status=member["policy_status"],
             ytd_claims=float(member["ytd_claims"]),
-            previous_claims=[]
+            previous_claims=previous_claims
         )
 
         # Adjudicate claim
@@ -496,6 +525,7 @@ async def process_claim(
             "approved_amount": decision.approved_amount,
             "decision": decision.decision.value,
             "confidence_score": float(decision.confidence_score),
+            "consultation_date": merged_data.dates.consultation_date if merged_data.dates else None,
             "status": "COMPLETED",
             "processed_at": datetime.utcnow().isoformat()
         }

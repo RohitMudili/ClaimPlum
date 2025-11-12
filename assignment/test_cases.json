@@ -289,6 +289,38 @@
         "network_discount": 900,
         "confidence_score": 0.93
       }
+    },
+    {
+      "case_id": "TC011",
+      "case_name": "Simple Consultation - Approved",
+      "description": "Regular doctor consultation for fever, all documents valid",
+      "input_data": {
+        "member_id": "EMP011",
+        "member_name": "Ranjith singh",
+        "treatment_date": "2024-11-01",
+        "claim_amount": 1500,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Sharma",
+            "doctor_reg": "KA/45678/2015",
+            "diagnosis": "Viral fever",
+            "medicines_prescribed": ["Paracetamol 650mg", "Vitamin C"]
+          },
+          "bill": {
+            "consultation_fee": 1000,
+            "diagnostic_tests": 500,
+            "test_names": ["CBC", "Dengue test"]
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "APPROVED",
+        "approved_amount": 1350,
+        "deductions": {
+          "copay": 150
+        },
+        "confidence_score": 0.95
+      }
     }
   ],
   "validation_notes": {
