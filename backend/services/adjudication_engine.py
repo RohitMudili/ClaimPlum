@@ -67,72 +67,92 @@ class AdjudicationEngine:
             decision.notes = f"Flagged for manual review due to fraud indicators (risk score: {fraud_risk:.2f})"
             return decision
 
+        # Collect ALL rejection reasons before making final decision
+        all_rejection_reasons = []
+        should_reject = False
+        should_manual_review = False
+
         # Step 0: Identity Verification (Name Matching)
         name_match_result = self._verify_identity(extracted_data, member_info)
         if name_match_result['status'] == 'REJECTED':
-            decision.decision = DecisionType.REJECTED
-            decision.rejection_reasons.append(RejectionReason(
+            should_reject = True
+            all_rejection_reasons.append(RejectionReason(
                 category="identity",
                 code="NAME_MISMATCH",
                 message="Name mismatch detected",
                 details=name_match_result['details']
             ))
-            decision.notes = name_match_result['details']
-            return decision
         elif name_match_result['status'] == 'MANUAL_REVIEW':
-            decision.decision = DecisionType.MANUAL_REVIEW
-            decision.notes = name_match_result['details']
+            should_manual_review = True
             decision.fraud_flags.append(name_match_result['details'])
-            return decision
 
         # Step 1: Eligibility Check
         step1_pass, rejection_reasons = self._check_eligibility(extracted_data, member_info)
         decision.adjudication_steps.eligibility = StepResult.PASS if step1_pass else StepResult.FAIL
         if not step1_pass:
-            decision.decision = DecisionType.REJECTED
-            decision.rejection_reasons.extend(rejection_reasons)
-            return decision
+            should_reject = True
+            all_rejection_reasons.extend(rejection_reasons)
 
         # Step 2: Document Validation
         step2_pass, rejection_reasons = self._validate_documents(extracted_data)
         decision.adjudication_steps.documents = StepResult.PASS if step2_pass else StepResult.FAIL
         if not step2_pass:
-            decision.decision = DecisionType.REJECTED
-            decision.rejection_reasons.extend(rejection_reasons)
-            return decision
+            should_reject = True
+            all_rejection_reasons.extend(rejection_reasons)
 
         # Step 3: Coverage Verification
         step3_pass, rejection_reasons, partial_coverage = self._verify_coverage(extracted_data)
         decision.adjudication_steps.coverage = StepResult.PASS if step3_pass else StepResult.FAIL
         if not step3_pass and not partial_coverage:
-            decision.decision = DecisionType.REJECTED
-            decision.rejection_reasons.extend(rejection_reasons)
-            return decision
+            should_reject = True
+            all_rejection_reasons.extend(rejection_reasons)
         elif partial_coverage:
             decision.decision = DecisionType.PARTIAL
-            decision.rejection_reasons.extend(rejection_reasons)
+            all_rejection_reasons.extend(rejection_reasons)
 
         # Step 4: Limits Check
         step4_pass, approved_amount, deductions, rejection_reasons = self._check_limits(
             extracted_data, member_info
         )
         decision.adjudication_steps.limits = StepResult.PASS if step4_pass else StepResult.WARNING
+        if not step4_pass:
+            should_reject = True  # Limits exceeded should trigger rejection
+            all_rejection_reasons.extend(rejection_reasons)
         decision.approved_amount = approved_amount
         decision.deductions = deductions
-
-        if not step4_pass:
-            if approved_amount > 0:
-                decision.decision = DecisionType.PARTIAL
-            else:
-                decision.decision = DecisionType.REJECTED
-            decision.rejection_reasons.extend(rejection_reasons)
 
         # Step 5: Medical Necessity Review
         step5_pass, rejection_reasons = self._review_medical_necessity(extracted_data)
         decision.adjudication_steps.medical_necessity = StepResult.PASS if step5_pass else StepResult.FAIL
         if not step5_pass:
+            should_reject = True
+            all_rejection_reasons.extend(rejection_reasons)
+
+        # Now make final decision based on all collected reasons
+        decision.rejection_reasons.extend(all_rejection_reasons)
+
+        if should_reject or len(all_rejection_reasons) > 0:
+            # If ANY critical rejection reason exists, reject the claim
             decision.decision = DecisionType.REJECTED
-            decision.rejection_reasons.extend(rejection_reasons)
+            decision.approved_amount = 0
+            # Combine all rejection details into notes
+            notes_parts = [r.details for r in all_rejection_reasons if r.details]
+            decision.notes = " | ".join(notes_parts) if notes_parts else "Claim rejected due to policy violations"
+
+            # Generate next steps
+            decision.next_steps = self._generate_next_steps(decision)
+            decision.confidence_score = self._calculate_decision_confidence(decision, extracted_data)
+
+            logger.info(
+                f"Adjudication complete: {decision.decision.value}, "
+                f"Rejected with {len(all_rejection_reasons)} reason(s), "
+                f"Confidence: {decision.confidence_score:.2f}"
+            )
+            return decision
+
+        if should_manual_review:
+            decision.decision = DecisionType.MANUAL_REVIEW
+            decision.notes = name_match_result['details']
             return decision
 
         # Check for network hospital benefits
