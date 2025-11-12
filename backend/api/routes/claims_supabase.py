@@ -198,7 +198,7 @@ async def _process_non_member_preview(
 
 @router.post("/upload")
 async def upload_documents(
-    member_id: Optional[str] = Form(None),
+    member_id: str = Form(...),  # Required
     prescription: Optional[UploadFile] = File(None),
     bill: Optional[UploadFile] = File(None),
     member_name: Optional[str] = Form(None),
@@ -207,13 +207,15 @@ async def upload_documents(
     supabase=Depends(get_supabase_admin)
 ):
     """
-    Upload claim documents - ALL FIELDS OPTIONAL
+    Upload claim documents
+
+    Member ID is required. Documents (prescription/bill) are optional but will be rejected if missing.
 
     For NON-MEMBERS: Returns sales conversion response with claim preview
     For MEMBERS: Normal claim upload flow
     """
-    # If no member_id provided, treat as non-member
-    if not member_id:
+    # If no member_id provided or empty, return error
+    if not member_id or not member_id.strip():
         return await _process_non_member_preview(
             prescription=prescription,
             bill=bill,
@@ -252,7 +254,7 @@ async def upload_documents(
             contact_phone=contact_phone
         )
 
-    # Check which documents are missing and reject claim if any are missing
+    # Check which documents are missing and return rejection decision
     missing_docs = []
     if not prescription:
         missing_docs.append("prescription")
@@ -260,10 +262,46 @@ async def upload_documents(
         missing_docs.append("bill")
 
     if missing_docs:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Claim rejected: Missing required document(s): {', '.join(missing_docs)}"
-        )
+        # Generate claim ID for tracking even for rejections
+        claims_count = supabase.table("claims").select("id", count="exact").execute()
+        rejection_claim_id = f"CLM_{claims_count.count + 1:06d}"
+
+        # Create rejected claim record in database
+        claim_data = {
+            "claim_id": rejection_claim_id,
+            "member_id": member_id,
+            "status": "COMPLETED",  # Use COMPLETED since adjudication is done
+            "decision": "REJECTED",  # Store actual decision here
+            "claim_amount": 0.0,
+            "approved_amount": 0.0,
+            "submission_date": datetime.utcnow().isoformat(),
+            "processed_at": datetime.utcnow().isoformat()
+        }
+        supabase.table("claims").insert(claim_data).execute()
+
+        # Return proper rejection response
+        return {
+            "claim_id": rejection_claim_id,
+            "decision": "REJECTED",
+            "message": "Claim rejected due to missing documents",
+            "rejection_reasons": [
+                {
+                    "category": "documentation",
+                    "code": "MISSING_DOCUMENTS",
+                    "message": f"Missing required document(s): {', '.join(missing_docs)}",
+                    "details": "Prescription from registered doctor and medical bill are required for claim processing"
+                }
+            ],
+            "claimed_amount": 0.0,
+            "approved_amount": 0.0,
+            "deductions": {
+                "copay": 0.0,
+                "non_covered_items": 0.0,
+                "exceeded_limits": 0.0
+            },
+            "notes": "Please upload all required documents to process your claim.",
+            "confidence_score": 1.0
+        }
 
     # Generate claim ID
     claims_count = supabase.table("claims").select("id", count="exact").execute()

@@ -70,9 +70,15 @@ const ClaimUpload = ({ onSuccess }) => {
   };
 
   const validate = () => {
-    // No validation needed - backend will handle validation
-    // All fields are optional, backend will return appropriate errors
-    return true;
+    const newErrors = {};
+
+    // Member ID is required
+    if (!formData.member_id || !formData.member_id.trim()) {
+      newErrors.member_id = 'Member ID is required';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
@@ -95,6 +101,15 @@ const ClaimUpload = ({ onSuccess }) => {
         setUploadProgress(100);
         if (onSuccess) {
           onSuccess(uploadResult, 'NOT_A_MEMBER');
+        }
+        return;
+      }
+
+      // Check if claim was rejected (e.g., missing documents)
+      if (uploadResult.decision === 'REJECTED') {
+        setUploadProgress(100);
+        if (onSuccess) {
+          onSuccess(uploadResult, 'REJECTED');
         }
         return;
       }
@@ -199,7 +214,7 @@ const ClaimUpload = ({ onSuccess }) => {
           {/* Member ID */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Member ID
+              Member ID <span className="text-red-500">*</span>
             </label>
             <input
               type="text"

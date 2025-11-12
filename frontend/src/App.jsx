@@ -11,6 +11,8 @@ function App() {
     setClaimData(data);
     if (type === 'NOT_A_MEMBER') {
       setCurrentView('sales');
+    } else if (type === 'REJECTED') {
+      setCurrentView('decision'); // Show rejection in decision view
     } else {
       setCurrentView('decision');
     }

@@ -394,17 +394,9 @@ class AdjudicationEngine:
                     details=f"₹{deductions.exceeded_limits} exceeds limit"
                 ))
 
-        # Calculate copay
-        consultation_copay_pct = self.policy_service.get_consultation_copay() / 100
-        if extracted_data.costs.consultation > 0:
-            copay = extracted_data.costs.consultation * consultation_copay_pct
-            deductions.copay += copay
-
-        pharmacy_copay_pct = self.policy_service.get_pharmacy_copay() / 100
-        if extracted_data.costs.medicines > 0:
-            # Assume branded drugs for now (in production, would check actual prescriptions)
-            copay = extracted_data.costs.medicines * pharmacy_copay_pct
-            deductions.copay += copay
+        # Calculate copay as 10% of total claimed amount
+        copay_percentage = 0.10  # 10% copay
+        deductions.copay = claimed_amount * copay_percentage
 
         # Calculate approved amount
         approved_amount = claimed_amount - deductions.copay - deductions.non_covered_items - deductions.exceeded_limits

@@ -26,9 +26,11 @@ api.interceptors.response.use(
  */
 export const uploadClaim = async (data) => {
   const formData = new FormData();
-  formData.append('member_id', data.member_id);
-  formData.append('prescription', data.prescription);
-  formData.append('bill', data.bill);
+
+  // Only append fields that have values
+  if (data.member_id) formData.append('member_id', data.member_id);
+  if (data.prescription) formData.append('prescription', data.prescription);
+  if (data.bill) formData.append('bill', data.bill);
 
   // Optional fields for non-members
   if (data.member_name) formData.append('member_name', data.member_name);
