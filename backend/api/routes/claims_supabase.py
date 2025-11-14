@@ -30,195 +30,111 @@ async def _process_non_member_preview(
     contact_phone: Optional[str]
 ):
     """
-    Process documents for non-member as sales preview
-    Shows what they WOULD get with Plum coverage
-    Even works without documents - shows generic sales pitch
+    Non-member sales conversion flow - OPTIMIZED
+
+    IMPORTANT: Does NOT process documents for non-members to:
+    1. Save Gemini API costs ($0.10+ per call)
+    2. Faster response time (instant vs 8-12 seconds)
+    3. Better user experience - straight to sales pitch
+
+    Instead, shows generic sales pitch with policy benefits
     """
     try:
-        # If no documents provided, show generic sales pitch
-        if not prescription and not bill:
-            return {
-                "decision": "NOT_A_MEMBER",
-                "message": "🎉 Great news! We'd love to help cover your medical expenses.",
-                "sales_pitch": {
-                    "headline": "Join thousands of companies using Plum!",
-                    "value_proposition": "Get comprehensive OPD coverage for your team starting at just ₹500/employee/month",
-                    "cta": "Get your team covered in just 2 minutes",
-                    "cta_url": "https://plumhq.com/get-quote",
-                    "urgency": "Join 5,000+ companies trusting Plum for healthcare"
-                },
-                "policy_benefits": {
-                    "annual_coverage": "₹50,000 per employee",
-                    "opd_coverage": "Consultations, diagnostics, pharmacy",
-                    "network_hospitals": "5,000+ partner hospitals",
-                    "cashless_claims": "Instant approval up to ₹5,000",
-                    "fast_processing": "Claims processed in <2 minutes"
-                },
-                "next_steps": [
-                    "Visit plumhq.com to get a free quote",
-                    "Share your company details for a custom plan",
-                    "Get your team covered and start saving today!"
-                ],
-                "contact_info": {
-                    "email": "sales@plumhq.com",
-                    "phone": "+91-80-1234-5678",
-                    "website": "https://plumhq.com"
-                },
-                "lead_captured": bool(contact_email or contact_phone)
-            }
+        # Skip document processing entirely - just show sales pitch
+        # This saves API costs and provides instant response
 
-        # Process documents to extract data IN PARALLEL for ~48% latency reduction
-        processor = DocumentProcessor()
-        merged_data = None
-
-        # Prepare processing tasks
-        async def process_prescription():
-            if prescription:
-                data = await prescription.read()
-                return await asyncio.to_thread(processor.process_document, data, prescription.filename)
-            return None
-
-        async def process_bill():
-            if bill:
-                data = await bill.read()
-                return await asyncio.to_thread(processor.process_document, data, bill.filename)
-            return None
-
-        # Process both documents simultaneously
-        prescription_result, bill_result = await asyncio.gather(
-            process_prescription(),
-            process_bill()
-        )
-
-        # Merge results
-        if prescription_result and prescription_result.success:
-            merged_data = prescription_result.data
-
-        if bill_result and bill_result.success:
-            # Merge bill data if we have prescription data already
-            if merged_data:
-                if bill_result.data.costs:
-                    merged_data.costs = bill_result.data.costs
-                if bill_result.data.hospital_name:
-                    merged_data.hospital_name = bill_result.data.hospital_name
-            # If no prescription but bill succeeded, use bill data
-            else:
-                merged_data = bill_result.data
-
-        # If still no merged_data (both documents failed or missing), return generic sales pitch
-        if not merged_data:
-            return {
-                "decision": "NOT_A_MEMBER",
-                "message": "🎉 Great news! We'd love to help cover your medical expenses.",
-                "sales_pitch": {
-                    "headline": "Join thousands of companies using Plum!",
-                    "value_proposition": "Get comprehensive OPD coverage for your team starting at just ₹500/employee/month",
-                    "benefits": [
-                        "✓ No waiting period - instant coverage",
-                        "✓ Cover consultation, diagnostics, pharmacy bills",
-                        "✓ Digital-first experience with quick claim approvals",
-                        "✓ Flexible plans from ₹50,000 to ₹1,00,000 per employee"
-                    ],
-                    "cta": "Get your team covered in just 2 minutes",
-                    "cta_url": "https://plumhq.com/get-quote",
-                    "urgency": "Join 5,000+ companies trusting Plum for healthcare"
-                }
-            }
-
-        # Create hypothetical member for calculation
-        # Use the name from the documents to avoid name mismatch
-        doc_name = member_name
-        if merged_data.patient_info and merged_data.patient_info.name:
-            doc_name = merged_data.patient_info.name
-
-        # Set policy start date to 2023-01-01 (well before any treatment) to bypass waiting periods
-        hypothetical_member = AdjMemberInfo(
-            member_id="PREVIEW",
-            member_name=doc_name or "Potential Customer",
-            policy_start_date="2023-01-01",  # Set to early date to avoid waiting period issues
-            policy_status="active",
-            ytd_claims=0.0,
-            previous_claims=[]
-        )
-
-        # Run adjudication to show potential savings
-        engine = AdjudicationEngine()
-        preview_decision = engine.adjudicate_claim(merged_data, hypothetical_member)
-
-        print("\n🔍 SALES CONVERSION DEBUG:")
-        print(f"   Claimed amount: ₹{merged_data.costs.total if merged_data.costs else 0}")
-        print(f"   Preview decision: {preview_decision.decision.value}")
-        print(f"   Approved amount: ₹{preview_decision.approved_amount}")
-        print(f"   Rejection reasons: {[r.message for r in preview_decision.rejection_reasons]}")
-        print(f"   Deductions: copay=₹{preview_decision.deductions.copay}, network=₹{preview_decision.deductions.network_discount}")
-
-        claimed_amount = merged_data.costs.total if merged_data.costs else 0.0
-        potential_savings = preview_decision.approved_amount  # Amount Plum would cover = your savings
-        coverage_percentage = (preview_decision.approved_amount / claimed_amount * 100) if claimed_amount > 0 else 0
-
-        # Build sales conversion response
         return {
             "decision": "NOT_A_MEMBER",
-            "message": "🎉 Great news! We'd love to help cover these medical expenses.",
+            "message": "You're not a Plum member yet, but we'd love to help cover your medical expenses!",
             "sales_pitch": {
-                "headline": "You're not covered yet, but you could be!",
-                "value_proposition": f"With Plum, you would have saved ₹{potential_savings:.2f} on this claim ({coverage_percentage:.0f}% coverage).",
+                "headline": "Join 5,000+ companies using Plum for healthcare",
+                "value_proposition": "Get comprehensive OPD coverage for your team starting at just ₹500/employee/month",
+                "key_benefits": [
+                    "✓ Annual coverage up to ₹50,000 per employee",
+                    "✓ No waiting period - instant coverage from day 1",
+                    "✓ Cover consultations, diagnostics, pharmacy bills",
+                    "✓ 5,000+ network hospitals nationwide",
+                    "✓ Cashless claims up to ₹5,000 at network hospitals",
+                    "✓ AI-powered claim processing in <2 minutes",
+                    "✓ 20% discount at network hospitals",
+                    "✓ Only 10% copay on most treatments"
+                ],
                 "cta": "Get your team covered in just 2 minutes",
                 "cta_url": "https://plumhq.com/get-quote",
-                "urgency": "Join 5,000+ companies trusting Plum for healthcare"
+                "urgency": "Protect your team's health today!"
             },
-            "claim_preview": {
-                "your_claim_amount": claimed_amount,
-                "plum_would_cover": preview_decision.approved_amount,
-                "your_savings": potential_savings,
-                "coverage_percentage": round(coverage_percentage, 1),
-                "copay_details": {
-                    "consultation": f"Only 10% copay (you pay ₹{preview_decision.deductions.copay:.0f})",
-                    "network_discount": f"20% discount at network hospitals (₹{preview_decision.deductions.network_discount:.0f} saved)"
+            "policy_highlights": {
+                "coverage_details": {
+                    "annual_limit": "₹50,000 per employee",
+                    "per_claim_limit": "₹5,000",
+                    "consultation_coverage": "Up to ₹2,000 per visit",
+                    "pharmacy_coverage": "Up to ₹15,000 per year",
+                    "diagnostic_tests": "Up to ₹10,000 per year",
+                    "dental_coverage": "Up to ₹10,000 per year",
+                    "vision_care": "Up to ₹5,000 per year",
+                    "alternative_medicine": "Up to ₹8,000 per year"
                 },
-                "what_we_found": {
-                    "diagnosis": merged_data.diagnosis or "Treatment reviewed",
-                    "hospital": merged_data.hospital_name or "Hospital visit",
-                    "doctor": merged_data.doctor_info.name if merged_data.doctor_info else "Medical professional"
-                }
+                "what_we_cover": [
+                    "Doctor consultations",
+                    "Diagnostic tests (blood, X-ray, MRI, CT)",
+                    "Prescription medications",
+                    "Dental procedures (filling, extraction, root canal)",
+                    "Vision care & eyeglasses",
+                    "Alternative medicine (Ayurveda, Homeopathy, Unani)"
+                ],
+                "special_features": [
+                    "Network hospital discounts (20% off)",
+                    "Instant cashless approval up to ₹5,000",
+                    "AI-powered quick claim processing",
+                    "Minimal documentation required",
+                    "Dedicated support team"
+                ]
             },
-            "policy_benefits": {
-                "annual_coverage": "₹50,000 per employee",
-                "opd_coverage": "Consultations, diagnostics, pharmacy",
-                "network_hospitals": "5,000+ partner hospitals",
-                "cashless_claims": "Instant approval up to ₹5,000",
-                "fast_processing": "Claims processed in <2 minutes"
+            "example_savings": {
+                "scenario": "Typical consultation with diagnostic tests",
+                "without_plum": "You pay ₹1,500 out of pocket",
+                "with_plum": "You pay only ₹150 (10% copay)",
+                "plum_covers": "₹1,350",
+                "you_save": "₹1,350 (90% savings)"
             },
             "next_steps": [
-                "Visit plumhq.com to get a free quote",
-                "Share your company details for a custom plan",
-                "Get your team covered and start saving today!"
+                "📞 Call us: +91-80-1234-5678 for instant quote",
+                "🌐 Visit: https://plumhq.com to explore plans",
+                "📧 Email: sales@plumhq.com with company details",
+                "💬 Live chat with our team for custom pricing"
             ],
             "contact_info": {
                 "email": "sales@plumhq.com",
                 "phone": "+91-80-1234-5678",
-                "website": "https://plumhq.com"
+                "website": "https://plumhq.com",
+                "support_hours": "Monday-Saturday, 9:00 AM - 6:00 PM IST"
             },
-            "lead_captured": bool(contact_email or contact_phone),
-            "confidence_score": preview_decision.confidence_score
+            "lead_info": {
+                "captured": bool(contact_email or contact_phone),
+                "member_name": member_name,
+                "contact_email": contact_email,
+                "contact_phone": contact_phone,
+                "documents_uploaded": bool(prescription or bill),
+                "timestamp": datetime.now().isoformat()
+            }
         }
 
-    except Exception as e:
-        # Even if processing fails, return sales response
+    except Exception:
+        # Fallback if anything goes wrong (though shouldn't happen with no processing)
         return {
             "decision": "NOT_A_MEMBER",
-            "message": "We'd love to help! This ID isn't in our system, but you can get coverage for your team.",
+            "message": "This ID isn't in our system. Want to get your team covered?",
             "sales_pitch": {
                 "headline": "Join thousands of companies using Plum",
                 "value_proposition": "Comprehensive OPD coverage starting at just ₹500/employee/month",
                 "cta": "Get a free quote in 2 minutes",
                 "cta_url": "https://plumhq.com/get-quote"
             },
-            "error_note": "We couldn't fully process your documents, but we'd still love to help you get covered!",
-            "next_steps": [
-                "Visit plumhq.com for a free consultation",
-                "Speak to our sales team for custom pricing"
-            ]
+            "contact_info": {
+                "email": "sales@plumhq.com",
+                "phone": "+91-80-1234-5678",
+                "website": "https://plumhq.com"
+            }
         }
 
 
