@@ -30,7 +30,7 @@ async def _process_non_member_preview(
     contact_phone: Optional[str]
 ):
     """
-    Non-member sales conversion flow - OPTIMIZED
+    Non-member sales conversion flow 
 
     IMPORTANT: Does NOT process documents for non-members to:
     1. Save Gemini API costs ($0.10+ per call)
